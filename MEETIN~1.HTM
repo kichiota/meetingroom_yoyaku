@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会議室予約システム</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  header {
+    background: white;
+    padding: 24px 32px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+  }
+  h1 {
+    font-size: 28px;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h1::before {
+    content: "📅";
+    font-size: 32px;
+  }
+  .subtitle {
+    color: #718096;
+    margin-top: 6px;
+    font-size: 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+  .card h2 {
+    font-size: 18px;
+    color: #2d3748;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #edf2f7;
+  }
+  .form-group {
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 6px;
+  }
+  input, select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+  .time-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  button {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+  button:active { transform: translateY(0); }
+  .date-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .date-selector input {
+    flex: 1;
+    max-width: 200px;
+  }
+  .nav-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: #edf2f7;
+    color: #4a5568;
+    border-radius: 8px;
+    font-size: 18px;
+  }
+  .nav-btn:hover {
+    background: #cbd5e0;
+    transform: none;
+    box-shadow: none;
+  }
+  .timetable {
+    overflow-x: auto;
+  }
+  .timetable-grid {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr;
+    min-width: 600px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .tt-header {
+    background: #2d3748;
+    color: white;
+    padding: 12px 8px;
+    font-weight: 600;
+    text-align: center;
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+  }
+  .tt-time-label {
+    background: #f7fafc;
+    padding: 4px 8px;
+    border-top: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    font-size: 12px;
+    color: #718096;
+    text-align: right;
+    height: 30px;
+    line-height: 22px;
+  }
+  .tt-cell {
+    border-top: 1px solid #f1f5f9;
+    border-right: 1px solid #e2e8f0;
+    height: 30px;
+    position: relative;
+  }
+  .tt-cell:last-child { border-right: none; }
+  .tt-cell.hour-line { border-top: 1px solid #e2e8f0; }
+  .tt-column {
+    position: relative;
+  }
+  .reservation-block {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    color: white;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 2;
+  }
+  .reservation-block:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 3;
+  }
+  .reservation-block.large {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  }
+  .reservation-block.small {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  }
+  .res-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+  .res-time {
+    font-size: 11px;
+    opacity: 0.9;
+  }
+  .empty-state {
+    text-align: center;
+    color: #a0aec0;
+    padding: 20px;
+    font-size: 14px;
+  }
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    display: none;
+  }
+  .alert.show { display: block; }
+  .alert.error {
+    background: #fed7d7;
+    color: #c53030;
+    border: 1px solid #feb2b2;
+  }
+  .alert.success {
+    background: #c6f6d5;
+    color: #2f855a;
+    border: 1px solid #9ae6b4;
+  }
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+  .legend-color.large { background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); }
+  .legend-color.small { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); }
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+  }
+  .modal h3 {
+    margin-bottom: 12px;
+    color: #2d3748;
+  }
+  .modal-info {
+    background: #f7fafc;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .modal-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .btn-danger {
+    background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
+  }
+  .btn-secondary {
+    background: #e2e8f0;
+    color: #4a5568;
+  }
+  .reservation-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 8px;
+  }
+  .res-item {
+    background: #f7fafc;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid #667eea;
+  }
+  .res-item.large { border-left-color: #4299e1; }
+  .res-item.small { border-left-color: #48bb78; }
+  .res-item-info { flex: 1; }
+  .res-item-name { font-weight: 600; color: #2d3748; }
+  .res-item-meta { color: #718096; font-size: 12px; margin-top: 2px; }
+  .delete-btn {
+    width: auto;
+    padding: 4px 10px;
+    font-size: 12px;
+    background: #fed7d7;
+    color: #c53030;
+  }
+  .delete-btn:hover {
+    background: #feb2b2;
+    box-shadow: none;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>会議室予約システム</h1>
+    <div class="subtitle">会議室（大）・会議室（小）の予約管理</div>
+  </header>
+
+  <div class="grid">
+    <!-- 予約フォーム -->
+    <div>
+      <div class="card">
+        <h2>新しい予約を追加</h2>
+        <div id="alert" class="alert"></div>
+        <form id="bookingForm">
+          <div class="form-group">
+            <label>予約者名</label>
+            <input type="text" id="name" placeholder="例：山田太郎" required>
+          </div>
+          <div class="form-group">
+            <label>会議室</label>
+            <select id="room" required>
+              <option value="large">会議室（大）</option>
+              <option value="small">会議室（小）</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>日付</label>
+            <input type="date" id="date" required>
+          </div>
+          <div class="form-group">
+            <label>時間</label>
+            <div class="time-row">
+              <input type="time" id="startTime" required>
+              <input type="time" id="endTime" required>
+            </div>
+          </div>
+          <button type="submit">予約を追加</button>
+        </form>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <h2>本日の予約一覧</h2>
+        <div id="reservationList" class="reservation-list">
+          <div class="empty-state">予約はありません</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- タイムテーブル -->
+    <div class="card">
+      <h2>予約状況タイムテーブル</h2>
+      <div class="date-selector">
+        <button type="button" class="nav-btn" onclick="changeDate(-1)">‹</button>
+        <input type="date" id="viewDate">
+        <button type="button" class="nav-btn" onclick="changeDate(1)">›</button>
+        <button type="button" class="nav-btn" onclick="goToday()" style="width: auto; padding: 0 14px; font-size: 13px;">今日</button>
+      </div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color large"></div>
+          <span>会議室（大）</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color small"></div>
+          <span>会議室（小）</span>
+        </div>
+      </div>
+      <div class="timetable">
+        <div class="timetable-grid" id="timetableGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>予約詳細</h3>
+    <div class="modal-info" id="modalInfo"></div>
+    <div class="modal-buttons">
+      <button class="btn-secondary" onclick="closeModal()">閉じる</button>
+      <button class="btn-danger" onclick="deleteCurrentReservation()">削除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'meetingRoomReservations';
+  const START_HOUR = 8;
+  const END_HOUR = 20;
+  const SLOT_HEIGHT = 30; // 30分 = 30px
+  let currentReservationId = null;
+
+  // 初期化
+  function init() {
+    const today = formatDate(new Date());
+    document.getElementById('date').value = today;
+    document.getElementById('viewDate').value = today;
+    document.getElementById('startTime').value = '10:00';
+    document.getElementById('endTime').value = '11:00';
+    renderTimetable();
+    renderReservationList();
+  }
+
+  function formatDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function getReservations() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  }
+
+  function saveReservations(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function timeToMinutes(t) {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function showAlert(message, type) {
+    const alert = document.getElementById('alert');
+    alert.className = `alert show ${type}`;
+    alert.textContent = message;
+    setTimeout(() => alert.classList.remove('show'), 3000);
+  }
+
+  // 予約追加
+  document.getElementById('bookingForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('name').value.trim();
+    const room = document.getElementById('room').value;
+    const date = document.getElementById('date').value;
+    const startTime = document.getElementById('startTime').value;
+    const endTime = document.getElementById('endTime').value;
+
+    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+      showAlert('終了時間は開始時間より後にしてください', 'error');
+      return;
+    }
+
+    const reservations = getReservations();
+    const conflict = reservations.find(r =>
+      r.room === room &&
+      r.date === date &&
+      timeToMinutes(startTime) < timeToMinutes(r.endTime) &&
+      timeToMinutes(endTime) > timeToMinutes(r.startTime)
+    );
+
+    if (conflict) {
+      showAlert(`時間が重複しています：${conflict.name}（${conflict.startTime}〜${conflict.endTime}）`, 'error');
+      return;
+    }
+
+    const newRes = {
+      id: Date.now().toString(),
+      name, room, date, startTime, endTime
+    };
+    reservations.push(newRes);
+    saveReservations(reservations);
+
+    showAlert('予約が追加されました', 'success');
+    document.getElementById('name').value = '';
+    document.getElementById('viewDate').value = date;
+    renderTimetable();
+    renderReservationList();
+  });
+
+  // タイムテーブル表示
+  function renderTimetable() {
+    const viewDate = document.getElementById('viewDate').value;
+    const grid = document.getElementById('timetableGrid');
+    grid.innerHTML = '';
+
+    // ヘッダー
+    grid.appendChild(createDiv('tt-header', '時間'));
+    grid.appendChild(createDiv('tt-header', '会議室（大）'));
+    grid.appendChild(createDiv('tt-header', '会議室（小）'));
+
+    // 時間ラベル列とセル列を作成
+    const timeColumn = document.createElement('div');
+    const largeColumn = document.createElement('div');
+    largeColumn.className = 'tt-column';
+    const smallColumn = document.createElement('div');
+    smallColumn.className = 'tt-column';
+
+    // 30分刻みで時間ラベルとセル
+    for (let h = START_HOUR; h < END_HOUR; h++) {
+      for (let m of [0, 30]) {
+        const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'tt-time-label';
+        if (m === 0) labelDiv.classList.add('hour-line');
+        labelDiv.textContent = timeStr;
+        timeColumn.appendChild(labelDiv);
+
+        const lCell = document.createElement('div');
+        lCell.className = 'tt-cell';
+        if (m === 0) lCell.classList.add('hour-line');
+        largeColumn.appendChild(lCell);
+
+        const sCell = document.createElement('div');
+        sCell.className = 'tt-cell';
+        if (m === 0) sCell.classList.add('hour-line');
+        smallColumn.appendChild(sCell);
+      }
+    }
+
+    // 予約ブロックを配置
+    const reservations = getReservations().filter(r => r.date === viewDate);
+    reservations.forEach(r => {
+      const block = document.createElement('div');
+      block.className = `reservation-block ${r.room}`;
+      const startMin = timeToMinutes(r.startTime) - START_HOUR * 60;
+      const duration = timeToMinutes(r.endTime) - timeToMinutes(r.startTime);
+      const top = (startMin / 30) * SLOT_HEIGHT;
+      const height = (duration / 30) * SLOT_HEIGHT - 2;
+      block.style.top = `${top}px`;
+      block.style.height = `${height}px`;
+      block.innerHTML = `<div class="res-name">${escapeHtml(r.name)}</div><div class="res-time">${r.startTime} 〜 ${r.endTime}</div>`;
+      block.onclick = () => openModal(r.id);
+      if (r.room === 'large') largeColumn.appendChild(block);
+      else smallColumn.appendChild(block);
+    });
+
+    grid.appendChild(timeColumn);
+    grid.appendChild(largeColumn);
+    grid.appendChild(smallColumn);
+  }
+
+  function createDiv(className, text) {
+    const d = document.createElement('div');
+    d.className = className;
+    d.textContent = text;
+    return d;
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  // 予約一覧
+  function renderReservationList() {
+    const viewDate = document.getElementById('viewDate').value;
+    const list = document.getElementById('reservationList');
+    const reservations = getReservations()
+      .filter(r => r.date === viewDate)
+      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+
+    if (reservations.length === 0) {
+      list.innerHTML = '<div class="empty-state">この日の予約はありません</div>';
+      return;
+    }
+
+    list.innerHTML = reservations.map(r => `
+      <div class="res-item ${r.room}">
+        <div class="res-item-info">
+          <div class="res-item-name">${escapeHtml(r.name)}</div>
+          <div class="res-item-meta">${r.room === 'large' ? '会議室（大）' : '会議室（小）'} ・ ${r.startTime}〜${r.endTime}</div>
+        </div>
+        <button class="delete-btn" onclick="deleteReservation('${r.id}')">削除</button>
+      </div>
+    `).join('');
+  }
+
+  function deleteReservation(id) {
+    if (!confirm('この予約を削除しますか？')) return;
+    const reservations = getReservations().filter(r => r.id !== id);
+    saveReservations(reservations);
+    renderTimetable();
+    renderReservationList();
+  }
+
+  // モーダル
+  function openModal(id) {
+    const r = getReservations().find(x => x.id === id);
+    if (!r) return;
+    currentReservationId = id;
+    document.getElementById('modalInfo').innerHTML = `
+      <strong>予約者：</strong>${escapeHtml(r.name)}<br>
+      <strong>会議室：</strong>${r.room === 'large' ? '会議室（大）' : '会議室（小）'}<br>
+      <strong>日付：</strong>${r.date}<br>
+      <strong>時間：</strong>${r.startTime} 〜 ${r.endTime}
+    `;
+    document.getElementById('modal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('show');
+    currentReservationId = null;
+  }
+
+  function deleteCurrentReservation() {
+    if (!currentReservationId) return;
+    if (!confirm('この予約を削除しますか？')) return;
+    const reservations = getReservations().filter(r => r.id !== currentReservationId);
+    saveReservations(reservations);
+    closeModal();
+    renderTimetable();
+    renderReservationList();
+  }
+
+  // 日付ナビゲーション
+  function changeDate(delta) {
+    const input = document.getElementById('viewDate');
+    const d = new Date(input.value);
+    d.setDate(d.getDate() + delta);
+    input.value = formatDate(d);
+    renderTimetable();
+    renderReservationList();
+  }
+
+  function goToday() {
+    document.getElementById('viewDate').value = formatDate(new Date());
+    renderTimetable();
+    renderReservationList();
+  }
+
+  document.getElementById('viewDate').addEventListener('change', () => {
+    renderTimetable();
+    renderReservationList();
+  });
+
+  document.getElementById('modal').addEventListener('click', (e) => {
+    if (e.target.id === 'modal') closeModal();
+  });
+
+  init();
+</script>
+</body>
+</html>
